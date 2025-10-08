@@ -1,12 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from model.engine import PNPEngine
 from model.objects.setup import Setup
 
 
 def main() -> None:
-    start_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H_%M_%S")
+    start_ts = datetime.now(tz=ZoneInfo("Europe/London")).strftime("%Y-%m-%dT%H_%M_%S")
     output_dir = Path(f"output/results_{start_ts}")
     output_dir.mkdir(parents=True, exist_ok=True)
 

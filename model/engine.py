@@ -24,8 +24,8 @@ class PNPEngine:
 
     def run(self) -> pd.DataFrame:
 
-        def get_job_id(job: Job, job_iteration: int) -> str:
-            return job.job_id + "-" + str(job_iteration)
+        def get_unique_job_id(job_id: str, job_iteration: int) -> str:
+            return job_id + "-" + str(job_iteration)
 
         job_previous: Job | None = None
         job_iteration = 1
@@ -35,28 +35,29 @@ class PNPEngine:
             sequence_for_job: list[Event] = []
 
             if job_previous:
-                job_previous_id = get_job_id(job_previous, job_iteration)
+                job_previous_id = get_unique_job_id(job_previous.job_id, job_iteration)
                 job_iteration = 1
-                job_id = get_job_id(job, job_iteration)
+                job_id = get_unique_job_id(job.job_id, job_iteration)
                 sequence_for_job.append(Event.changeover_event(job_previous_id, job_id, job.machine.pcb_changeover_time))
 
             sequence_for_trip, feeder_last = self._run_job(job, feeder_last)
             sequence_for_job.extend(sequence_for_trip)
-            self.sequence_by_job[get_job_id(job, job_iteration)] = sequence_for_job
+            self.sequence_by_job[get_unique_job_id(job.job_id, job_iteration)] = sequence_for_job
 
             while job_iteration < quantity:
                 job_iteration += 1
                 sequence_for_job_next: list[Event] = []
-                sequence_for_job_next.append(Event.changeover_event(get_job_id(job, job_iteration - 1), get_job_id(job, job_iteration), job.machine.pcb_changeover_time))
+                sequence_for_job_next.append(Event.changeover_event(get_unique_job_id(job.job_id, job_iteration - 1), get_unique_job_id(job.job_id, job_iteration), job.machine.pcb_changeover_time))
                 sequence_for_job_next.extend(copy.deepcopy(sequence_for_trip))
-                self.sequence_by_job[get_job_id(job, job_iteration)] = sequence_for_job_next
+                self.sequence_by_job[get_unique_job_id(job.job_id, job_iteration)] = sequence_for_job_next
 
             job_previous = job
 
-        unique_job_ids = set(self.sequence_by_job.keys())
+        unique_jobs = { job.job_id : job for job, _ in self.setup.jobs }
 
         if self.save_figs:
-            self.fig_by_job = { job_id: plot_events_path(job.feeders, job.placements, self.sequence_by_job[get_job_id(job, 1)], f"{job.job_id}: {job.job_name}") for job_id in unique_job_ids }
+            for job_id, job in unique_jobs.items():
+                self.fig_by_job[job_id] = plot_events_path(job.feeders, job.placements, self.sequence_by_job[get_unique_job_id(job_id, 1)], f"{job.job_id}: {job.job_name}")
 
         return self.get_sequence_df()
 
