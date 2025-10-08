@@ -82,7 +82,7 @@ def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], ev
             part_type = "Capacitor"
         elif "Microchip" in detail:
             part_type = "Microchip"
-        elif "Feeder" in detail:
+        elif detail.count("Feeder") == 2:
             continue # skip feeder-feeder arcs
         else:
             err_msg = f"Unknown part type in trip: {detail}"
@@ -92,7 +92,7 @@ def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], ev
         shades = _generate_shades_rgb(base_color, len(trip))
 
         for idx, event in enumerate(trip):
-            if event.arc is None or "Feeder" in event.detail:
+            if event.arc is None or event.detail.count("Feeder") == 2:
                 continue
             x0, y0 = event.arc.x_i, event.arc.y_i
             x1, y1 = event.arc.x_j, event.arc.y_j
@@ -116,7 +116,7 @@ def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], ev
     ]
     for part, c in PART_COLOR.items():
         handles.append(plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=c, markersize=6, label=part))
-    ax.legend(handles=handles, loc="upper right", frameon=False)
+    ax.legend(handles=handles, loc="center left", bbox_to_anchor=(1.05, 0.5), borderaxespad=0.0)
 
     ax.set_title(title)
     ax.set_xlabel("x (mm)")
