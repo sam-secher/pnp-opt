@@ -121,7 +121,7 @@ class PNPEngine:
             if feeder_previous and feeder_previous.id != feeder.id:
                 feeder_feeder_distance = job.feeder_feeder_distances[feeder_previous.id, feeder.id]
                 arc = Arc(feeder_previous.x, feeder_previous.y, feeder.x, feeder.y, feeder_feeder_distance)
-                sequence_for_trip.append(Event.travel_event(feeder_previous, feeder, feeder_feeder_distance / job.machine.travel_speed, arc, feeder_feeder=True))
+                sequence_for_trip.append(Event.travel_event(feeder_previous, feeder, feeder_feeder_distance / job.machine.travel_speed, arc))
 
             for cluster in clusters:
                 sequence_for_trip.append(Event.pick_event(feeder, job.machine.pick_time))

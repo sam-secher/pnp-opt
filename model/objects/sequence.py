@@ -35,9 +35,10 @@ class Event:
         return Event(EventType.CHANGEOVER, detail, time)
 
     @staticmethod
-    def travel_event(component_start: Node, component_finish: Node, time: float, arc: Arc, feeder_feeder: bool = False) -> "Event":
-        part_type = "Feeder" if feeder_feeder else component_start.part_type
-        detail = f"travel_{component_start.id}-{part_type}-{component_finish.id}-{component_finish.part_type}"
+    def travel_event(component_start: Node, component_finish: Node, time: float, arc: Arc) -> "Event":
+        start_part_type = "Feeder" if component_start.node_type == "feeder" else component_start.part_type
+        finish_part_type = "Feeder" if component_finish.node_type == "feeder" else component_finish.part_type
+        detail = f"travel_{component_start.id}-{start_part_type}_{component_finish.id}-{finish_part_type}"
         return Event(EventType.TRAVEL, detail, time, arc)
 
     def __repr__(self) -> str:

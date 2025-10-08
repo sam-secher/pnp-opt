@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from shapely.geometry import MultiPoint, Point
@@ -7,8 +7,9 @@ from model.utils.math_helpers import calculate_distance
 
 
 class Node:
-    def __init__(self, node_id: str, part_type: str, x: float, y: float) -> None:
+    def __init__(self, node_id: str, node_type: Literal["feeder", "placement"], part_type: str, x: float, y: float) -> None:
         self.id = node_id
+        self.node_type = node_type
         self.part_type = part_type
         self.x = x # in mm
         self.y = y # in mm
@@ -49,13 +50,13 @@ class Job:
 
     def _get_feeders(self, feeders_df: pd.DataFrame) -> list[Node]:
         return [
-            Node(feeder_id, part_type, x, y) for feeder_id, part_type, x, y
+            Node(feeder_id, "feeder", part_type, x, y) for feeder_id, part_type, x, y
             in zip(feeders_df["id"], feeders_df["part_type"], feeders_df["pickup_x_mm"], feeders_df["pickup_y_mm"])
         ]
 
     def _get_placements(self, placements_df: pd.DataFrame) -> list[Node]:
         return [
-            Node(placement_id, part_type, x, y) for placement_id, part_type, x, y
+            Node(placement_id, "placement", part_type, x, y) for placement_id, part_type, x, y
             in zip(placements_df["id"], placements_df["part_type"], placements_df["x_mm"], placements_df["y_mm"])
         ]
 
