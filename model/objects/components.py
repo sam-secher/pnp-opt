@@ -1,23 +1,14 @@
 from typing import Any
 
 import pandas as pd
+from shapely.geometry import MultiPoint, Point
 
 from model.utils.math_helpers import calculate_distance
 
 
-class Placement:
-    def __init__(self, placement_id: str, part_type: str, x: float, y: float) -> None:
-        self.id = placement_id
-        self.part_type = part_type
-        self.x = x # in mm
-        self.y = y # in mm
-
-    def __repr__(self) -> str:
-        return f"<{self.id!r}: {self.part_type!r}>"
-
-class Feeder:
-    def __init__(self, feeder_id: str, part_type: str, x: float, y:float) -> None:
-        self.id = feeder_id
+class Node:
+    def __init__(self, node_id: str, part_type: str, x: float, y: float) -> None:
+        self.id = node_id
         self.part_type = part_type
         self.x = x # in mm
         self.y = y # in mm
@@ -44,21 +35,27 @@ class Job:
         self.feeders = self._get_feeders(feeders_df)
         self.placements = self._get_placements(placements_df)
 
+        self._validate_points()
+
+        self.feeders.sort(key=lambda f: f.x) # assumed feeders in-line in y-axis
         self.feeder_by_part = { feeder.part_type: feeder for feeder in self.feeders }
+        self.feeders_by_id = { feeder.id: feeder for feeder in self.feeders }
+
+        self.placements_by_id = { placement.id: placement for placement in self.placements }
 
         self.feeder_placement_distances: dict[tuple[str, str], float] = {}
         self.feeder_feeder_distances: dict[tuple[str, str], float] = {}
         self.placement_placement_distances: dict[tuple[str, str], float] = {}
 
-    def _get_feeders(self, feeders_df: pd.DataFrame) -> list[Feeder]:
+    def _get_feeders(self, feeders_df: pd.DataFrame) -> list[Node]:
         return [
-            Feeder(feeder_id, part_type, x, y) for feeder_id, part_type, x, y
+            Node(feeder_id, part_type, x, y) for feeder_id, part_type, x, y
             in zip(feeders_df["id"], feeders_df["part_type"], feeders_df["pickup_x_mm"], feeders_df["pickup_y_mm"])
         ]
 
-    def _get_placements(self, placements_df: pd.DataFrame) -> list[Placement]:
+    def _get_placements(self, placements_df: pd.DataFrame) -> list[Node]:
         return [
-            Placement(placement_id, part_type, x, y) for placement_id, part_type, x, y
+            Node(placement_id, part_type, x, y) for placement_id, part_type, x, y
             in zip(placements_df["id"], placements_df["part_type"], placements_df["x_mm"], placements_df["y_mm"])
         ]
 
@@ -81,8 +78,8 @@ class Job:
                     self.placement_placement_distances[(placement.id, placement2.id)] = distance
                     self.placement_placement_distances[(placement2.id, placement.id)] = distance
 
-    def cluster_placements(self) -> dict[str, list[list[Placement]]]:
-        clusters_by_part_type: dict[str, list[list[Placement]]] = { part_type: [] for part_type in self.part_types }
+    def cluster_placements(self) -> dict[str, list[list[Node]]]:
+        clusters_by_part_type: dict[str, list[list[Node]]] = { part_type: [] for part_type in self.part_types }
 
         clustered_placements: list[str] = [] # by ID
         part_type_by_feeder = { feeder.id: feeder.part_type for feeder in self.feeders }
@@ -97,6 +94,15 @@ class Job:
         # TODO: Implement pre-solver cluster tidying algorithm (e.g. calc internal distance to centroid and try swaps between clusters)
 
         return clusters_by_part_type
+
+    def _validate_points(self) -> None:
+        """Verify that feeder pick-up coordinates don't overlap with minimum rectangle containing all placements."""
+        all_placements = MultiPoint([(placement.x, placement.y) for placement in self.placements])
+        min_rectangle = all_placements.minimum_rotated_rectangle
+        for feeder in self.feeders:
+            if min_rectangle.contains(Point(feeder.x, feeder.y)):
+                msg = "Feeders overlap with PCB boundary."
+                raise ValueError(msg)
 
 
     def __repr__(self) -> str:

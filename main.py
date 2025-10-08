@@ -1,4 +1,4 @@
-
+from datetime import datetime, timezone
 from pathlib import Path
 
 from model.engine import PNPEngine
@@ -6,14 +6,20 @@ from model.objects.setup import Setup
 
 
 def main() -> None:
+    start_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H_%M_%S")
+    output_dir = Path(f"output/results_{start_ts}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     setup_path = Path("input/test_1/setup.xlsx")
     setup = Setup(setup_path)
     setup.load_data()
 
-    engine = PNPEngine(setup)
+    engine = PNPEngine(setup, save_figs=True)
     results = engine.run()
 
-    results.sequence_df.to_csv("output/final_sequence.csv", index=False)
+    for job_id, fig in engine.fig_by_job.items():
+        fig.savefig(output_dir / f"{job_id}.png")
+    results.to_csv(output_dir / "full_sequence.csv", index=False)
 
 if __name__ == "__main__":
     main()

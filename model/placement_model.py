@@ -1,17 +1,16 @@
 import logging
-from typing import Any, cast
+from typing import cast
 
 import pandas as pd
 from pyomo.environ import Binary, ConcreteModel, Constraint, NonNegativeReals, Objective, Param, RangeSet, Set, SolverFactory, Var, minimize, quicksum, value
 from pyomo.opt import SolverResults, TerminationCondition
 
-from model.objects.components import Feeder, Placement
-from model.results import OptimisationResults
+from model.objects.components import Node
 
 
 class PlacementModel(ConcreteModel):
 
-    def __init__(self, feeder: Feeder, placements: list[Placement], feeder_placement_distances: dict[str, float],
+    def __init__(self, feeder: Node, placements: list[Node], feeder_placement_distances: dict[str, float],
                 placement_placement_distances: dict[tuple[str, str], float], machine_speed: float,
                 machine_align_time: float, machine_place_time: float) -> None:
         super().__init__()
@@ -166,26 +165,32 @@ class PlacementModel(ConcreteModel):
 
         p_results = { (i, j, t) : value(self.p[i, j, t]) for i, j in self.trip_idx for t in self.arc_idx }
 
-        cols = ["id", "x_i", "y_i", "x_j", "y_j", "arc_distance", "arc_time"]
+        cols = ["idx", "id_i", "id_j", "x_i", "y_i", "x_j", "y_j", "arc_distance", "arc_time"]
 
         results_all: list[pd.Series[float]] = []
 
-        for (i, j, _), val in p_results.items():
+        for (i, j, t), val in p_results.items():
+
             if val == 0:
                 continue
 
+            ob_i: Node = self.placements[i - 1] if i != 0 else self.feeder
+            ob_j: Node = self.placements[j - 1] if j != 0 else self.feeder
 
-            name = self.feeder.id if i == 0 else self.placements[i - 1].id
-            start_node_x = self.feeder.x if i == 0 else self.placements[i - 1].x
-            start_node_y = self.feeder.y if i == 0 else self.placements[i - 1].y
-            end_node_x = self.feeder.x if j == 0 else self.placements[j - 1].x
-            end_node_y = self.feeder.y if j == 0 else self.placements[j - 1].y
+            name_i = ob_i.id
+            name_j = ob_j.id
+            start_node_x = ob_i.x
+            start_node_y = ob_i.y
+            end_node_x = ob_j.x
+            end_node_y = ob_j.y
 
             arc_distance = self.trip_distance[i, j]
             arc_time = arc_distance / self.machine_speed + self.machine_align_time + self.machine_place_time
 
-            arc_result = pd.Series(data=[name,start_node_x, start_node_y, end_node_x, end_node_y, arc_distance, arc_time], index=cols)
+            arc_result = pd.Series(data=[t, name_i, name_j, start_node_x, start_node_y, end_node_x, end_node_y, arc_distance, arc_time], index=cols)
             results_all.append(arc_result)
 
-        return pd.concat(results_all, axis=1).T
+        results_df = pd.concat(results_all, axis=1).T
+
+        return results_df.set_index("idx").sort_index()
 
