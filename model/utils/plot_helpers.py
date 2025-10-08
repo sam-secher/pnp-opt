@@ -33,19 +33,51 @@ def _generate_shades_rgb(base_color: str, n: int) -> list[tuple[float, float, fl
         shades.append(tuple(shade))
     return shades
 
+def min_rectangle_with_padding(feeders: Iterable["Node"], placements: Iterable["Node"], gap: float = 1.0) -> tuple[float, tuple[float, float, float, float]]:
+    # tight bbox from placements
+    px = [n.x for n in placements]
+    py = [n.y for n in placements]
+    x_min, x_max = min(px), max(px)
+    y_min, y_max = min(py), max(py)
+
+    # For each feeder, how much could we expand the bbox uniformly
+    # before we include that feeder? (distance to nearest bbox side, if feeder is outside)
+    limits = []
+    for f in feeders:
+        dx_left   = max(0.0, x_min - f.x)   # feeder is left of bbox
+        dx_right  = max(0.0, f.x - x_max)   # feeder is right of bbox
+        dy_bottom = max(0.0, y_min - f.y)   # feeder is below bbox
+        dy_top    = max(0.0, f.y - y_max)   # feeder is above bbox
+
+        # distance to the nearest *relevant* side (0 if feeder is inside along that axis)
+        # since padding grows all sides uniformly, the limiting pad for this feeder
+        # is the minimum positive distance among the four sides
+        d = min(d for d in (dx_left, dx_right, dy_bottom, dy_top) if d > 0) \
+            if any(d > 0 for d in (dx_left, dx_right, dy_bottom, dy_top)) else float("inf")
+        limits.append(d)
+
+    # If all feeders are far away in both axes, limit is inf; otherwise take min
+    cap = min(limits) if limits else float("inf")
+    cap = max(0.0, cap - gap)  # keep a small breathing space
+
+    return cap, (x_min, x_max, y_min, y_max)
 
 def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], events: Iterable["Event"],
                         title: str, pad_mm: float = 5.0, invert_y: bool = True, annotate_order: bool = False) -> plt.Figure:
     """Plot feeders, placements, and TRAVEL arcs, colouring each trip as a lighter shade of the part colour."""
     fig, ax = plt.subplots(figsize=(8, 6))
 
+    cap, (x_min, x_max, y_min, y_max) = min_rectangle_with_padding(feeders, placements, gap=1.5)
+    eff_pad = min(pad_mm, cap)
+
     # Draw PCB bounding box (looks nice)
-    px = [n.x for n in placements]
-    py = [n.y for n in placements]
-    xmin, xmax = min(px) - pad_mm, max(px) + pad_mm
-    ymin, ymax = min(py) - pad_mm, max(py) + pad_mm
-    pcb = Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
-                    fill=False, edgecolor="black", linewidth=1.2)
+    x_min = x_min - eff_pad
+    x_max = x_max + eff_pad
+    y_min = y_min - eff_pad
+    y_max = y_max + eff_pad
+
+    pcb = Rectangle((x_min, y_min), x_max - x_min, y_max - y_min,
+                    fill=False, edgecolor="black", linewidth=1.2, linestyle="--")
     ax.add_patch(pcb)
 
     label_offset = 1.5
