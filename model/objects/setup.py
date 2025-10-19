@@ -30,25 +30,27 @@ class Setup:
                                                                  # if introduce more complexity (feeder replacement, job margin/revenue etc)
 
         job_ids = cast("Sequence[str]", self.jobs_df["id"].to_numpy())
+
+        err_msg = ""
+
         if self.jobs_df["id"].duplicated().any():
-            msg = "Job IDs are not unique"
-            raise ValueError(msg)
+            err_msg += "Job IDs are not unique \n"
 
         if self.feeders_df["id"].duplicated().any():
-            msg = "Feeder IDs are not unique"
-            raise ValueError(msg)
+            err_msg += "Feeder IDs are not unique \n"
 
         if self.feeders_df["part_type"].duplicated().any():
-            msg = "Expected one-to-one mapping between feeder and part type"
-            raise ValueError(msg)
+            err_msg += "Expected one-to-one mapping between feeder and part type \n"
 
         feeders_pickup_y = self.feeders_df["pickup_y_mm"].to_numpy()
         if not np.all(feeders_pickup_y[0] == feeders_pickup_y):
-            msg = "Expected consistent feeder pickup y" # assume pickup y in-line (important for determining start feeder)
+            err_msg += "Expected consistent feeder pickup y \n" # assume pickup y in-line (important for determining start feeder)
 
         if self.placements_df.duplicated(subset=["job_id", "id"]).any():
-            msg = "Placement IDs are not unique"
-            raise ValueError(msg)
+            err_msg += "Placement IDs are not unique \n"
+
+        if err_msg:
+            raise ValueError(err_msg.strip())
 
         for job_id in job_ids:
             job_df = self.jobs_df[self.jobs_df["id"] == job_id]

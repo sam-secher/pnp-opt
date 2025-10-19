@@ -23,8 +23,8 @@ class Machine:
         self.head_capacity: int = machine_inputs["head_capacity"].astype(int)
         self.travel_speed: float = machine_inputs["travel_speed_mm_s"] # in mm/s
         self.pick_time: float = machine_inputs["pick_time_s"] # in s
-        self.place_time: float = machine_inputs["place_time_s"] # in s
-        self.vision_align_time: float = machine_inputs["vision_align_s"] # in s
+        self.place_time: float = machine_inputs["place_time_s"] + machine_inputs["vision_align_s"] # in s
+        # self.vision_align_time: float = machine_inputs["vision_align_s"] # in s
         self.pcb_changeover_time: float = machine_inputs["pcb_changeover_s"] # in s
 
 class Job:
