@@ -128,10 +128,7 @@ class PNPEngine:
                 sequence_for_trip.append(Event.pick_event(feeder, job.machine.pick_time))
                 feeder_placement_distances = { placement.id: job.feeder_placement_distances[feeder.id, placement.id] for placement in cluster }
 
-                model = PlacementModel(
-                    feeder, cluster, feeder_placement_distances, job.placement_placement_distances,
-                    job.machine.travel_speed, job.machine.vision_align_time, job.machine.place_time,
-                )
+                model = PlacementModel(feeder, cluster, feeder_placement_distances, job.placement_placement_distances, job.machine.travel_speed)
 
                 cluster_result = model.run()
                 sequence_for_trip.extend(self._get_placement_events(job, cluster_result))

@@ -9,20 +9,20 @@ from model.objects.components import Node
 
 
 class PlacementModel(ConcreteModel):
+    """Model for finding shortest path through placements for a single subtour."""
 
     def __init__(self, feeder: Node, placements: list[Node], feeder_placement_distances: dict[str, float],
-                placement_placement_distances: dict[tuple[str, str], float], machine_speed: float,
-                machine_align_time: float, machine_place_time: float) -> None:
+                placement_placement_distances: dict[tuple[str, str], float], machine_speed: float) -> None:
         super().__init__()
 
         self.logger = logging.getLogger(__name__)
+
+        self.TOL = 1e-6
 
         self.feeder = feeder
         self.placements = placements
 
         self.machine_speed = machine_speed
-        self.machine_align_time = machine_align_time
-        self.machine_place_time = machine_place_time
 
         self.feeder_idx = 0
         self.n_placements = len(placements)
@@ -149,15 +149,19 @@ class PlacementModel(ConcreteModel):
 
         results = cast("SolverResults", solver.solve(self, tee=True))
 
+        err_msg = ""
+
         if results.solver.termination_condition == TerminationCondition.optimal:
             self.logger.info("Optimal solution found.")
         elif results.solver.termination_condition == TerminationCondition.infeasible:
-            self.logger.info("Infeasible model.")
+            err_msg = "Infeasible model."
         elif results.solver.termination_condition in [TerminationCondition.maxTimeLimit, TerminationCondition.feasible]:
-            self.logger.info("Solver timed out.")
+            err_msg = "Solver timed out."
         else:
             err_msg = f"Solver terminated with unknown termination condition: {results.solver.termination_condition}"
-            self.logger.info(err_msg)
+
+        if err_msg:
+            self.logger.error(err_msg)
             raise RuntimeError(err_msg)
 
     def _get_results(self) -> pd.DataFrame:
@@ -171,7 +175,7 @@ class PlacementModel(ConcreteModel):
 
         for (i, j, t), val in p_results.items():
 
-            if val == 0:
+            if val < self.TOL:
                 continue
 
             ob_i: Node = self.placements[i - 1] if i != 0 else self.feeder
@@ -185,7 +189,7 @@ class PlacementModel(ConcreteModel):
             end_node_y = ob_j.y
 
             arc_distance = self.trip_distance[i, j]
-            arc_time = arc_distance / self.machine_speed + self.machine_align_time + self.machine_place_time
+            arc_time = arc_distance / self.machine_speed
 
             arc_result = pd.Series(data=[t, name_i, name_j, start_node_x, start_node_y, end_node_x, end_node_y, arc_distance, arc_time], index=cols)
             results_all.append(arc_result)

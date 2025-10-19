@@ -124,8 +124,11 @@ def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], ev
         shades = _generate_shades_rgb(base_color, len(trip))
 
         for idx, event in enumerate(trip):
-            if event.arc is None or event.detail.count("Feeder") == 2:
+            if event.arc is None:
                 continue
+
+            color = to_rgb("gray") if event.detail.count("Feeder") == 2 else shades[idx] # type: ignore[assignment]
+
             x0, y0 = event.arc.x_i, event.arc.y_i
             x1, y1 = event.arc.x_j, event.arc.y_j
             arrow = FancyArrowPatch(
@@ -133,7 +136,7 @@ def plot_events_path(feeders: Iterable["Node"], placements: Iterable["Node"], ev
                 arrowstyle="->",
                 mutation_scale=8,
                 linewidth=1.2,
-                color=shades[idx],
+                color=color,
                 alpha=0.8,
             )
             ax.add_patch(arrow)
