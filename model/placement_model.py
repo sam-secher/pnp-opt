@@ -65,7 +65,7 @@ class PlacementModel(ConcreteModel):
 
         self.place_idx = RangeSet(1, self.n_placements)
         self.node_idx = RangeSet(0, self.n_placements) # a node is a placement or a feeder
-        self.arc_idx = RangeSet(0,self.n_placements) # a arc is a trip taken, total arcs = 1 (f2p) + (num placements - 1) + 1 (p2f)
+        self.arc_idx = RangeSet(0, self.n_placements) # a arc is a trip taken, total arcs = 1 (f2p) + (num placements - 1) + 1 (p2f)
         self.arc_idx_1 = RangeSet(1, self.n_placements - 1) # for initial conditions
         self.trip_idx = Set(initialize=self.trips) # set of all possible trips
 

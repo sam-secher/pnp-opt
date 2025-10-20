@@ -38,7 +38,7 @@ class PNPEngine:
                 job_previous_id = get_unique_job_id(job_previous.job_id, job_iteration)
                 job_iteration = 1
                 job_id = get_unique_job_id(job.job_id, job_iteration)
-                sequence_for_job.append(Event.changeover_event(job_previous_id, job_id, job.machine.pcb_changeover_time))
+                sequence_for_job.append(Event.job_changeover_event(job_previous_id, job_id, job.machine.pcb_changeover_time))
 
             sequence_for_trip, feeder_last = self._run_job(job, feeder_last)
             sequence_for_job.extend(sequence_for_trip)
@@ -47,7 +47,7 @@ class PNPEngine:
             while job_iteration < quantity:
                 job_iteration += 1
                 sequence_for_job_next: list[Event] = []
-                sequence_for_job_next.append(Event.changeover_event(get_unique_job_id(job.job_id, job_iteration - 1), get_unique_job_id(job.job_id, job_iteration), job.machine.pcb_changeover_time))
+                sequence_for_job_next.append(Event.job_changeover_event(get_unique_job_id(job.job_id, job_iteration - 1), get_unique_job_id(job.job_id, job_iteration), job.machine.pcb_changeover_time))
                 sequence_for_job_next.extend(copy.deepcopy(sequence_for_trip))
                 self.sequence_by_job[get_unique_job_id(job.job_id, job_iteration)] = sequence_for_job_next
 
@@ -120,6 +120,13 @@ class PNPEngine:
             clusters = clusters_by_part_type[part_type]
 
             if feeder_previous and feeder_previous.id != feeder.id:
+
+                tool_required = job.tool_by_part[part_type]
+                previous_tool_required = job.tool_by_part[feeder_previous.part_type]
+
+                if tool_required != previous_tool_required:
+                    sequence_for_trip.append(Event.tool_changover_event(previous_tool_required, tool_required, job.machine.tool_changeover_time))
+
                 feeder_feeder_distance = job.feeder_feeder_distances[feeder_previous.id, feeder.id]
                 arc = Arc(feeder_previous.x, feeder_previous.y, feeder.x, feeder.y, feeder_feeder_distance)
                 sequence_for_trip.append(Event.travel_event(feeder_previous, feeder, feeder_feeder_distance / job.machine.travel_speed, arc))

@@ -11,7 +11,7 @@ def main() -> None:
     output_dir = Path(f"output/results_{start_ts}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    setup_path = Path("input/test_1/setup.xlsx")
+    setup_path = Path("input/test_2/setup.xlsx")
     setup = Setup(setup_path)
     setup.load_data()
 

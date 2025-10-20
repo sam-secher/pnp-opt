@@ -3,14 +3,17 @@ from typing import Any, Literal
 import pandas as pd
 from shapely.geometry import MultiPoint, Point
 
+import copy
+
 from model.utils.math_helpers import calculate_distance
 
 
 class Node:
-    def __init__(self, node_id: str, node_type: Literal["feeder", "placement"], part_type: str, x: float, y: float) -> None:
+    def __init__(self, node_id: str, node_type: Literal["feeder", "placement"], part_type: str, tool_type: str | None, x: float, y: float) -> None:
         self.id = node_id
         self.node_type = node_type
         self.part_type = part_type
+        self.tool_type = tool_type
         self.x = x # in mm
         self.y = y # in mm
 
@@ -24,23 +27,25 @@ class Machine:
         self.travel_speed: float = machine_inputs["travel_speed_mm_s"] # in mm/s
         self.pick_time: float = machine_inputs["pick_time_s"] # in s
         self.place_time: float = machine_inputs["place_time_s"] + machine_inputs["vision_align_s"] # in s
-        # self.vision_align_time: float = machine_inputs["vision_align_s"] # in s
+        self.tool_changeover_time: float = machine_inputs["nozzle_changeover_s"] # in s
         self.pcb_changeover_time: float = machine_inputs["pcb_changeover_s"] # in s
 
 class Job:
-    def __init__(self, job_id: str, job_name: str, machine_inputs: "pd.Series[Any]", feeders_df: pd.DataFrame, placements_df: pd.DataFrame) -> None:
+    def __init__(self, job_id: str, job_name: str, machine_inputs: "pd.Series[Any]", tools_df: pd.DataFrame, feeders_df: pd.DataFrame, placements_df: pd.DataFrame) -> None:
         self.job_id = job_id
         self.job_name = job_name
         self.machine = Machine(machine_inputs)
         self.part_types = placements_df["part_type"].unique()
+        self.tool_by_part = self._get_tool_by_part(tools_df)
         self.feeders = self._get_feeders(feeders_df)
-        self.placements = self._get_placements(placements_df)
 
-        self._validate_points()
-
-        self.feeders.sort(key=lambda f: f.x) # assumed feeders in-line in y-axis
+        self.feeders.sort(key=lambda f: self.tool_by_part[f.part_type]) # Sequence feeders by matching tool types (minimise tool changeovers)
         self.feeder_by_part = { feeder.part_type: feeder for feeder in self.feeders }
         self.feeders_by_id = { feeder.id: feeder for feeder in self.feeders }
+
+        self.placements = self._get_placements(placements_df, self.tool_by_part)
+
+        self._validate_points()
 
         self.placements_by_id = { placement.id: placement for placement in self.placements }
 
@@ -48,15 +53,18 @@ class Job:
         self.feeder_feeder_distances: dict[tuple[str, str], float] = {}
         self.placement_placement_distances: dict[tuple[str, str], float] = {}
 
+    def _get_tool_by_part(self, tools_df: pd.DataFrame) -> dict[str, str]:
+        return dict(zip(tools_df["part_type"], tools_df["nozzle_type"]))
+
     def _get_feeders(self, feeders_df: pd.DataFrame) -> list[Node]:
         return [
-            Node(feeder_id, "feeder", part_type, x, y) for feeder_id, part_type, x, y
+            Node(feeder_id, "feeder", part_type, tool_type=None, x=x, y=y) for feeder_id, part_type, x, y
             in zip(feeders_df["id"], feeders_df["part_type"], feeders_df["pickup_x_mm"], feeders_df["pickup_y_mm"])
         ]
 
-    def _get_placements(self, placements_df: pd.DataFrame) -> list[Node]:
+    def _get_placements(self, placements_df: pd.DataFrame, tool_by_part: dict[str, str]) -> list[Node]:
         return [
-            Node(placement_id, "placement", part_type, x, y) for placement_id, part_type, x, y
+            Node(placement_id, "placement", part_type, tool_by_part[part_type], x, y) for placement_id, part_type, x, y
             in zip(placements_df["id"], placements_df["part_type"], placements_df["x_mm"], placements_df["y_mm"])
         ]
 

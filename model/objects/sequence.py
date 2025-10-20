@@ -30,8 +30,8 @@ class Event:
         return Event(EventType.PLACE, detail, time)
 
     @staticmethod
-    def changeover_event(job_finish_id: str, job_start_id: str, time: float) -> "Event":
-        detail = f"changover_{job_finish_id}_{job_start_id}"
+    def job_changeover_event(job_finish_id: str, job_start_id: str, time: float) -> "Event":
+        detail = f"pcb_changover_{job_finish_id}_{job_start_id}"
         return Event(EventType.CHANGEOVER, detail, time)
 
     @staticmethod
@@ -40,6 +40,11 @@ class Event:
         finish_part_type = "Feeder" if component_finish.node_type == "feeder" else component_finish.part_type
         detail = f"travel_{component_start.id}-{start_part_type}_{component_finish.id}-{finish_part_type}"
         return Event(EventType.TRAVEL, detail, time, arc)
+
+    @staticmethod
+    def tool_changover_event(tool_previous: str, tool_next: str, time: float) -> "Event":
+        detail = f"tool_changeover_{tool_previous}_{tool_next}"
+        return Event(EventType.CHANGEOVER, detail, time)
 
     def __repr__(self) -> str:
         return f"<{self.detail!r}>"

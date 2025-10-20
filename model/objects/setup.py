@@ -22,6 +22,7 @@ class Setup:
 
     def load_data(self) -> None:
         self.machine_inputs = pd.read_excel(self.setup_path, sheet_name="machine", index_col="property")["value"]
+        self.tools_df = pd.read_excel(self.setup_path, sheet_name="tools")
         self.feeders_df = pd.read_excel(self.setup_path, sheet_name="feeders")
         self.jobs_df = pd.read_excel(self.setup_path, sheet_name="jobs")
         self.placements_df = pd.read_excel(self.setup_path, sheet_name="placements")
@@ -35,6 +36,9 @@ class Setup:
 
         if self.jobs_df["id"].duplicated().any():
             err_msg += "Job IDs are not unique \n"
+
+        if self.tools_df["part_type"].duplicated().any():
+            err_msg += "Expected one-to-one mapping between part type and nozzle size"
 
         if self.feeders_df["id"].duplicated().any():
             err_msg += "Feeder IDs are not unique \n"
@@ -57,7 +61,7 @@ class Setup:
             job_quantity = job_df["quantity"].to_numpy()[0]
             job_name = job_df["name"].to_numpy()[0]
             job_placements_df = self.placements_df[self.placements_df["job_id"] == job_id]
-            self.jobs.append((Job(job_id, job_name, self.machine_inputs, self.feeders_df, job_placements_df), job_quantity))
+            self.jobs.append((Job(job_id, job_name, self.machine_inputs, self.tools_df, self.feeders_df, job_placements_df), job_quantity))
 
     def __repr__(self) -> str:
         return f"<Setup path={self.setup_path!r}>"
